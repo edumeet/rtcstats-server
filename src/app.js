@@ -9,18 +9,27 @@ const WebSocket = require('ws');
 
 const { name: appName, version: appVersion } = require('../package');
 
-const AmplitudeConnector = require('./database/AmplitudeConnector');
-const FirehoseConnector = require('./database/FirehoseConnector');
 const DemuxSink = require('./demux');
 const logger = require('./logging');
 const PromCollector = require('./metrics/PromCollector');
-const saveEntryAssureUnique = require('./store/dynamo').saveEntryAssureUnique;
 const { getStatsFormat } = require('./utils/stats-detection');
 const { asyncDeleteFile, getEnvName, getIdealWorkerCount, RequestType, ResponseType } = require('./utils/utils');
 const WorkerPool = require('./worker-pool/WorkerPool');
+let saveEntryAssureUnique;
+
+switch (config.db) {
+case 'mongodb':
+    saveEntryAssureUnique = require('./store/mongodb').saveEntryAssureUnique;
+    break;
+case 'dynamo':
+    saveEntryAssureUnique = require('./store/dynamo').saveEntryAssureUnique;
+    break;
+}
 
 // Configure store, fall back to S3
 let store;
+
+store = require('./store/file.js')(config.file);
 
 if (!store) {
     store = require('./store/s3.js')(config.s3);
@@ -30,6 +39,8 @@ if (!store) {
 let amplitude;
 
 if (config.amplitude && config.amplitude.key) {
+    const AmplitudeConnector = require('./database/AmplitudeConnector');
+
     amplitude = new AmplitudeConnector(config.amplitude.key);
 } else {
     logger.warn('[App] Amplitude is not configured!');
@@ -47,6 +58,7 @@ if (meetingStatsStream
     && e2ePingStream
     && faceLandmarksStream
     && firehoseAwsRegion) {
+    const FirehoseConnector = require('./database/FirehoseConnector');
 
     const appEnv = config.server?.appEnvironment;
 
@@ -143,6 +155,12 @@ workerPool.on(ResponseType.DONE, body => {
         } catch (e) {
             logger.error('[App] Handling ERROR event with error %o and body %o', e, body);
         }
+    }
+    if (config.db === 'mongodb') {
+        const { saveEntry } = require('./store/mongodb');
+
+        saveEntry('features', features);
+        saveEntry('body', body);
     }
 
     persistDumpData(dumpInfo);

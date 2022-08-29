@@ -1,4 +1,11 @@
 server:
     logLevel: debug
-    jsonConsoleLog: false
+    jsonConsoleLog: true
     useHTTPS: true
+file:
+    directory: '/tmp'
+mongodb:
+    uri: 'mongodb://localhost:27017'
+    db: 'rtcstats'
+    collection: 'rtcstats'
+db: 'mongodb'

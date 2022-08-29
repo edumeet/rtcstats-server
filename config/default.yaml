@@ -51,3 +51,13 @@ github:
 dynamo:
   tableName:
   endpoint:
+
+mongodb:
+    uri:
+    db:
+    collection:
+
+file:
+    directory: '/tmp'
+
+db: 'dynamo'
